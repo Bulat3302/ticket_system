@@ -16,7 +16,7 @@
     "dev:api": "npm run start:dev --workspace api",
     "dev:client": "npm run dev --workspace client-web",
     "dev:staff": "npm run dev --workspace staff-web",
-    "prod:up": "bash infra/prod-up.sh"
+    "up": "bash infra/up.sh"
   },
   "engines": {
     "node": ">=24"

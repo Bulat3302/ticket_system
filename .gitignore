@@ -1,15 +1,28 @@
+# Секреты
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Патчи и временные артефакты
+*.patch
+
+# Node
 node_modules/
 dist/
 coverage/
-.env
-.env.local
-*.log
-.DS_Store
-.idea/
-.vscode/
 apps/*/node_modules/
 apps/*/dist/
-infra/certs/*.pem
-infra/certs/*.key
 
+# Логи и системное
+*.log
+.DS_Store
 
+# IDE
+.idea/
+.vscode/
+
+# Сертификаты
+infra/certs/*
+!infra/certs/.gitkeep

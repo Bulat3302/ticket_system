@@ -1,5 +1,0 @@
-services:
-  keycloak:
-    environment:
-      KC_HOSTNAME: http://localhost:18081
-

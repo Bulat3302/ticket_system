@@ -55,7 +55,7 @@ export class RateLimitService implements OnModuleInit, OnModuleDestroy {
       throw new HttpException(
         {
           message:
-            'Превышен лимит талонов с этого устройства (не более 3 в час)',
+            'Превышен лимит талонов с этого номера (не более 3 в час)',
           retryAfterSeconds: Math.max(retryAfterSeconds, 60),
         },
         HttpStatus.TOO_MANY_REQUESTS,
@@ -67,16 +67,6 @@ export class RateLimitService implements OnModuleInit, OnModuleDestroy {
     await this.requireClient().set(`ticket:cooldown:${clientKey}`, '1', {
       EX: 300,
     });
-  }
-
-  async bindActiveTicket(clientKey: string): Promise<void> {
-    await this.requireClient().set(`ticket:bind:${clientKey}`, '1', {
-      EX: 86_400,
-    });
-  }
-
-  async clearActiveTicket(clientKey: string): Promise<void> {
-    await this.requireClient().del(`ticket:bind:${clientKey}`);
   }
 
   async holdSlot(

@@ -29,7 +29,7 @@ import {
   switchMap,
 } from 'rxjs';
 import { PublicCsrfGuard, Roles, SessionGuard } from '../auth/auth';
-import { clientIp } from '../http/client-ip';
+import { normalizePhoneDigits } from './person-input';
 import {
   AssignEmployeeDeskDto,
   AssignmentActionDto,
@@ -78,7 +78,6 @@ export class PublicQueueController {
       !current ||
       ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(current.status)
     ) {
-      await this.rateLimit.clearActiveTicket(clientIp(request));
       delete request.session.ticketTokenHash;
       delete request.session.lookupCode;
       return null;
@@ -187,12 +186,11 @@ export class PublicQueueController {
   }
 
   @Post('tickets')
-  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   async create(@Req() request: Request, @Body() body: CreateTicketDto) {
     if (body.website) {
       return { ignored: true };
     }
-    const key = clientIp(request);
+    const key = normalizePhoneDigits(body.phone);
     await this.rateLimit.assertCanCreateTicket(key);
     const existing = await this.findActiveTicket(request);
     if (existing) {
@@ -219,7 +217,6 @@ export class PublicQueueController {
       created.tokenHash,
       ...(request.session.ticketHistory ?? []),
     ].slice(0, 30);
-    await this.rateLimit.bindActiveTicket(key);
     return created.ticket;
   }
 
@@ -257,8 +254,9 @@ export class PublicQueueController {
     const active = await this.findActiveTicket(request);
     if (!active) return null;
     await this.queue.cancelTicketByHash(active.tokenHash);
-    await this.rateLimit.recordTicketCancelled(clientIp(request));
-    await this.rateLimit.clearActiveTicket(clientIp(request));
+    await this.rateLimit.recordTicketCancelled(
+      normalizePhoneDigits(active.current.phone ?? ''),
+    );
     delete request.session.ticketTokenHash;
     delete request.session.lookupCode;
     return { cancelled: true };

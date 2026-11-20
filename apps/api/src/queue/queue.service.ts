@@ -325,6 +325,39 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async nextTicketNumber(
+    manager: EntityManager,
+    site: Site,
+    scheduledAt: Date,
+  ): Promise<string> {
+    const timeZone = site.timezone || 'Europe/Moscow';
+    const slotDate = scheduledAt.toLocaleDateString('en-CA', { timeZone });
+    const { start, end } = this.booking.dayBounds(slotDate, timeZone);
+    const base = await manager
+      .createQueryBuilder(Ticket, 'ticket')
+      .where('ticket.siteId = :siteId', { siteId: site.id })
+      .andWhere('ticket.scheduledAt >= :start AND ticket.scheduledAt < :end', {
+        start,
+        end,
+      })
+      .getCount();
+    let seq = base + 1;
+    while (true) {
+      const number = `${site.code}-${String(seq).padStart(3, '0')}`;
+      const taken = await manager
+        .createQueryBuilder(Ticket, 'ticket')
+        .where('ticket.siteId = :siteId', { siteId: site.id })
+        .andWhere('ticket.number = :number', { number })
+        .andWhere(
+          'ticket.scheduledAt >= :start AND ticket.scheduledAt < :end',
+          { start, end },
+        )
+        .getCount();
+      if (taken === 0) return number;
+      seq += 1;
+    }
+  }
+
   async createTicket(input: {
     siteId: string;
     serviceTypeId: string;
@@ -410,18 +443,11 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         manager,
       );
 
-      const count = await manager
-        .createQueryBuilder(Ticket, 'ticket')
-        .where('ticket.siteId = :siteId', { siteId: input.siteId })
-        .andWhere(
-          "ticket.createdAt >= (date_trunc('day', now() AT TIME ZONE :timezone) AT TIME ZONE :timezone)",
-          { timezone: site.timezone },
-        )
-        .getCount();
+      const number = await this.nextTicketNumber(manager, site, scheduledAt);
       try {
         const ticket = await manager.save(
           manager.create(Ticket, {
-            number: `${site.code}-${String(count + 1).padStart(3, '0')}`,
+            number,
             accessTokenHash: tokenHash,
             lookupCodeHash,
             status: 'BOOKED',
@@ -569,18 +595,11 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         manager,
       );
 
-      const count = await manager
-        .createQueryBuilder(Ticket, 'ticket')
-        .where('ticket.siteId = :siteId', { siteId: input.siteId })
-        .andWhere(
-          "ticket.createdAt >= (date_trunc('day', now() AT TIME ZONE :timezone) AT TIME ZONE :timezone)",
-          { timezone: site.timezone },
-        )
-        .getCount();
+      const number = await this.nextTicketNumber(manager, site, scheduledAt);
 
       const ticket = await manager.save(
         manager.create(Ticket, {
-          number: `${site.code}-${String(count + 1).padStart(3, '0')}`,
+          number,
           accessTokenHash: tokenHash,
           lookupCodeHash,
           status: 'BOOKED',
